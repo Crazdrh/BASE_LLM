@@ -631,25 +631,7 @@ class Expert(nn.Module):
 
 
 class MoE(nn.Module):
-    """
-    Mixture-of-Experts (MoE) module.
-
-    Attributes:
-        dim (int): Dimensionality of input features.
-        n_routed_experts (int): Total number of experts in the model.
-        n_local_experts (int): Number of experts handled locally in distributed systems.
-        n_activated_experts (int): Number of experts activated for each input.
-        gate (nn.Module): Gating mechanism to route inputs to experts.
-        experts (nn.ModuleList): List of expert modules.
-        shared_experts (nn.Module): Shared experts applied to all inputs.
-    """
     def __init__(self, args: ModelArgs):
-        """
-        Initializes the MoE module.
-
-        Args:
-            args (ModelArgs): Model arguments containing MoE parameters.
-        """
         super().__init__()
         self.dim = args.dim
         assert args.n_routed_experts % world_size == 0, f"Number of experts must be divisible by world size (world_size={world_size})"
@@ -691,23 +673,7 @@ class MoE(nn.Module):
 
 
 class Block(nn.Module):
-    """
-    Transformer block combining attention and feed-forward layers.
-
-    Attributes:
-        attn (nn.Module): Attention layer (MLA).
-        ffn (nn.Module): Feed-forward network (MLP or MoE).
-        attn_norm (nn.Module): Layer normalization for attention.
-        ffn_norm (nn.Module): Layer normalization for feed-forward network.
-    """
     def __init__(self, layer_id: int, args: ModelArgs):
-        """
-        Initializes the Transformer block.
-
-        Args:
-            layer_id (int): Layer index in the transformer.
-            args (ModelArgs): Model arguments containing block parameters.
-        """
         super().__init__()
         self.attn = MLA(args)
         self.ffn = MLP(args.dim, args.inter_dim) if layer_id < args.n_dense_layers else MoE(args)
@@ -733,17 +699,6 @@ class Block(nn.Module):
 
 
 class Transformer(nn.Module):
-    """
-    Transformer model with positional embeddings, multiple layers, and output projection.
-
-    Attributes:
-        max_seq_len (int): Maximum sequence length for the transformer.
-        embed (nn.Module): Embedding layer for input tokens.
-        layers (torch.nn.ModuleList): List of transformer blocks.
-        norm (nn.Module): Layer normalization applied after all blocks.
-        head (nn.Module): Output projection layer mapping to vocabulary size.
-        freqs_cis (torch.Tensor): Precomputed complex exponential values for rotary embeddings.
-    """
     def __init__(self, args: ModelArgs):
         """
         Initializes the Transformer model.
@@ -767,16 +722,6 @@ class Transformer(nn.Module):
 
     @torch.inference_mode()
     def forward(self, tokens: torch.Tensor, start_pos: int = 0):
-        """
-        Forward pass for the Transformer model.
-
-        Args:
-            tokens (torch.Tensor): Input tensor of token IDs with shape (batch_size, seq_len).
-            start_pos (int, optional): Starting position in the sequence for rotary embeddings. Defaults to 0.
-
-        Returns:
-            torch.Tensor: Logits tensor of shape (batch_size, vocab_size).
-        """
         seqlen = tokens.size(1)
         h = self.embed(tokens)
         freqs_cis = self.freqs_cis[start_pos:start_pos+seqlen]
